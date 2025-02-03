@@ -563,9 +563,7 @@ class FlexTableCard extends HTMLElement {
             root.removeChild(root.lastChild);
 
         // Add search configuration with default as false
-        const cfg = Object.assign({}, config, {
-            search: config.search || false
-        });
+        const cfg = Object.assign({}, config);  // Remove extra search property assignment
 
         // assemble html
         const card = document.createElement('ha-card');
@@ -579,7 +577,7 @@ class FlexTableCard extends HTMLElement {
         var css_styles = {
             "table":                    "width: 100%; padding: 16px; ",
             "thead th":                 "height: 1em;",
-            "tr td":                    "padding-left: 0.5em; padding-right: 0.5em; ",
+            "tr td":                    "padding-left: 0.5em; padding-right: 0.5em; font-size: 12.5px;",
             "th":                       "padding-left: 0.5em; padding-right: 0.5em; ",
             "tr td.left":               "text-align: left; ",
             "th.left":                  "text-align: left; ",
@@ -597,11 +595,12 @@ class FlexTableCard extends HTMLElement {
             "tbody tr:nth-child(even)": "background-color: var(--table-row-alternative-background-color); ",
             "th ha-icon":               "height: 1em; vertical-align: top; ",
             "tfoot *":                  "border-style: solid none solid none;",
-            "div.table-header":         "display: flex; justify-content: space-between; align-items: center; padding: 0 16px;",
+            "div.table-header":         "display: flex; justify-content: space-between; align-items: center; padding: 16px;",
             "div.table-header .search-wrapper": 
-                                        "display: flex; align-items: center;",
-            "div.table-header input":   "padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color); color: var(--primary-text-color);"            
+                                        "width: 100%; padding: 0 0.5em;",
+            "div.table-header input":   "width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color); color: var(--primary-text-color);"
         }
+
         // apply CSS-styles from configuration
         // ("+" suffix to key means "append" instead of replace)
         if ("css" in cfg) {
@@ -631,14 +630,12 @@ class FlexTableCard extends HTMLElement {
 
         // table skeleton, body identified with: 'flextbl', footer with 'flexfoot'
         content.innerHTML = `
-            <div class="table-header">
-                ${cfg.title ? `<div class="table-title">${cfg.title}</div>` : ''}
-                ${cfg.search ? `
+            ${config.search ? `
+            <div class="table-header" style="padding: ${cfg.title ? '0 16px 0' : '16px 16px 0'};">
                 <div class="search-wrapper">
                     <input type="text" id="search-input" placeholder="Search...">
                 </div>
-                ` : ''}
-            </div>
+            </div>` : ''}
             <table>
                 <thead>
                     <tr>
@@ -650,6 +647,7 @@ class FlexTableCard extends HTMLElement {
                 <tfoot id='flexfoot'></tfoot>
             </table>
         `;
+
         // push css-style & table as content into the card's DOM tree
         card.appendChild(style);
         card.appendChild(content);
