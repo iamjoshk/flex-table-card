@@ -100,6 +100,7 @@ class DataTable {
     constructor(cfg) {
         this.cfg = cfg;
         this.sort_by = cfg.sort_by;
+        this.filter = '';
 
         // Provide default column name option if not supplied
         this.cols = cfg.columns.map((col, idx) => {
@@ -129,6 +130,21 @@ class DataTable {
     }
 
     get_rows() {
+        let filtered_rows = this.rows;
+        
+        // Apply text filter if one exists
+        if (this.filter) {
+            filtered_rows = this.rows.filter(row => {
+                return row.data.some(cell => {
+                    if (cell && cell.content) {
+                        const content = String(cell.content).toLowerCase();
+                        return content.includes(this.filter);
+                    }
+                    return false;
+                });
+            });
+        }
+
         // sorting is allowed asc/desc for multiple columns
         if (this.sort_by) {
             let sort_cols = listify(this.sort_by);
@@ -152,7 +168,7 @@ class DataTable {
             sort_conf = sort_conf.filter((conf) => conf.idx !== -1 && conf.idx !== null);
             if (sort_conf.length > 0) {
                 
-                this.rows.sort((x, y) => 
+                filtered_rows.sort((x, y) => 
                     sort_conf.reduce((out, conf) => 
                         out || conf.dir * compare(
                             x.data[conf.idx] && (x.data[conf.idx].sort_unmodified ? x.data[conf.idx].raw_content : x.data[conf.idx].content),
@@ -168,13 +184,13 @@ class DataTable {
 
         }
         // mark rows to be hidden due to 'strict' property
-        this.rows = this.rows.filter(row => !row.hidden);
+        filtered_rows = filtered_rows.filter(row => !row.hidden);
 
         // truncate shown rows to 'max rows', if configured
         if ("max_rows" in this.cfg && this.cfg.max_rows > -1)
-            this.rows = this.rows.slice(0, this.cfg.max_rows);
+            filtered_rows = filtered_rows.slice(0, this.cfg.max_rows);
 
-        return this.rows;
+        return filtered_rows;
     }
 
     updateSortBy(idx) {
@@ -184,6 +200,10 @@ class DataTable {
         } else {
             this.sort_by = new_sort + "+";
         }
+    }
+
+    setFilter(value) {
+        this.filter = value.toLowerCase();
     }
 }
 
@@ -536,12 +556,16 @@ class FlexTableCard extends HTMLElement {
                 throw new Error('Please specify action in "domain.action" format.');
             }
         }
+        
 
         const root = this.shadowRoot;
         if (root.lastChild)
             root.removeChild(root.lastChild);
 
-        const cfg = Object.assign({}, config);
+        // Add search configuration with default as false
+        const cfg = Object.assign({}, config, {
+            search: config.search || false
+        });
 
         // assemble html
         const card = document.createElement('ha-card');
@@ -572,7 +596,11 @@ class FlexTableCard extends HTMLElement {
             "tbody tr:nth-child(odd)":  "background-color: var(--table-row-background-color); ",
             "tbody tr:nth-child(even)": "background-color: var(--table-row-alternative-background-color); ",
             "th ha-icon":               "height: 1em; vertical-align: top; ",
-            "tfoot *":                  "border-style: solid none solid none;"
+            "tfoot *":                  "border-style: solid none solid none;",
+            "div.table-header":         "display: flex; justify-content: space-between; align-items: center; padding: 0 16px;",
+            "div.table-header .search-wrapper": 
+                                        "display: flex; align-items: center;",
+            "div.table-header input":   "padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color); color: var(--primary-text-color);"            
         }
         // apply CSS-styles from configuration
         // ("+" suffix to key means "append" instead of replace)
@@ -603,17 +631,25 @@ class FlexTableCard extends HTMLElement {
 
         // table skeleton, body identified with: 'flextbl', footer with 'flexfoot'
         content.innerHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            ${my_headers.map((obj, idx) =>
-                                `${obj.th_html_begin}${obj.icon_html}${obj.th_html_end}`).join("")}
-                        </tr>
-                    </thead>
-                    <tbody id='flextbl'></tbody>
-                    <tfoot id='flexfoot'></tfoot>
-                </table>
-                `;
+            <div class="table-header">
+                ${cfg.title ? `<div class="table-title">${cfg.title}</div>` : ''}
+                ${cfg.search ? `
+                <div class="search-wrapper">
+                    <input type="text" id="search-input" placeholder="Search...">
+                </div>
+                ` : ''}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        ${my_headers.map((obj, idx) =>
+                            `${obj.th_html_begin}${obj.icon_html}${obj.th_html_end}`).join("")}
+                    </tr>
+                </thead>
+                <tbody id='flextbl'></tbody>
+                <tfoot id='flexfoot'></tfoot>
+            </table>
+        `;
         // push css-style & table as content into the card's DOM tree
         card.appendChild(style);
         card.appendChild(content);
@@ -642,6 +678,27 @@ class FlexTableCard extends HTMLElement {
                     );
                 };
             });
+        }
+
+        // Add the new search input handler
+        if (cfg.search) {
+            const searchInput = root.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    this.tbl.setFilter(e.target.value);
+                    this._updateContent(
+                        root.getElementById("flextbl"),
+                        this.tbl.get_rows()
+                    );
+                    if (this._config.display_footer) {
+                        this._updateFooter(
+                            root.getElementById("flexfoot"),
+                            this._config,
+                            this.tbl.get_rows()
+                        );
+                    }
+                });
+            }
         }
 
         this._config = cfg;
