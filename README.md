@@ -1,3 +1,15 @@
+This fork adds a configurable search box above the table to filter data down to only what you want to see without altering the card itself.
+Just add `search: true` below `type`. Example:
+```
+type: custom:flex-table-card
+search: true
+entities:
+... rest of configuration
+```
+It also reduces font-size sligthtly (which was for my own preference convenience).
+
+---
+
 # Flex Table
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration) 
